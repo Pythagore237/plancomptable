@@ -1,0 +1,6 @@
+{
+  "name": "Compta Perso",
+  "description": "Comptabilité personnelle en partie double inspirée du SYSCOHADA : gestion du patrimoine, trésorerie, budgets et suivi des dépenses et revenus.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

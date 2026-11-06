@@ -1,0 +1,216 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information and general accounting preferences",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The unique Firebase Auth UID of the user"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name"
+        },
+        "currency": {
+          "type": "string",
+          "description": "Default currency symbol (e.g. FCFA, EUR, USD)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": ["userId", "currency"]
+    },
+    "AccountingEntry": {
+      "title": "AccountingEntry",
+      "description": "A double-entry accounting transaction conforming to SYSCOHADA logic",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "dateMillis": {
+          "type": "number",
+          "description": "Timestamp in milliseconds representing the transaction date"
+        },
+        "reference": {
+          "type": "string",
+          "description": "Document reference or receipt number"
+        },
+        "label": {
+          "type": "string",
+          "description": "Transaction wording / wording of entry"
+        },
+        "debitAccountCode": {
+          "type": "string",
+          "description": "SYSCOHADA account code debited (e.g. 621, 551, 217)"
+        },
+        "debitAccountName": {
+          "type": "string",
+          "description": "Name of the debited account"
+        },
+        "creditAccountCode": {
+          "type": "string",
+          "description": "SYSCOHADA account code credited (e.g. 521, 531, 701)"
+        },
+        "creditAccountName": {
+          "type": "string",
+          "description": "Name of the credited account"
+        },
+        "amount": {
+          "type": "number",
+          "description": "Transaction amount in monetary units"
+        },
+        "categoryType": {
+          "type": "string",
+          "description": "Type of operation (EXPENSE, REVENUE, SAVINGS_TRANSFER, INTERNAL_TRANSFER, DEBT_BORROW, DEBT_REPAY, LOAN_GIVEN, LOAN_RECOVERED, ASSET_PURCHASE, EXCEPTIONAL)"
+        },
+        "note": {
+          "type": "string",
+          "description": "Additional remarks or source note"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when saved"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated"
+        }
+      },
+      "required": [
+        "userId",
+        "dateMillis",
+        "label",
+        "debitAccountCode",
+        "debitAccountName",
+        "creditAccountCode",
+        "creditAccountName",
+        "amount",
+        "categoryType"
+      ]
+    },
+    "AccountItem": {
+      "title": "AccountItem",
+      "description": "Custom or customized account in the 9-class chart of accounts",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "code": {
+          "type": "string",
+          "description": "Account code (e.g. 533, 622)"
+        },
+        "name": {
+          "type": "string",
+          "description": "Title of the account"
+        },
+        "accountClass": {
+          "type": "number",
+          "description": "Class number from 1 to 9"
+        },
+        "description": {
+          "type": "string",
+          "description": "Account function or explanation"
+        },
+        "isCustom": {
+          "type": "boolean",
+          "description": "Whether created by user"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated"
+        }
+      },
+      "required": ["userId", "code", "name", "accountClass", "isCustom"]
+    },
+    "BudgetItem": {
+      "title": "BudgetItem",
+      "description": "Class 9 budget or savings goal definition",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "accountCode": {
+          "type": "string",
+          "description": "Budget account code (e.g. 902)"
+        },
+        "targetAccountCode": {
+          "type": "string",
+          "description": "Target expense or savings account (e.g. 621 or 551)"
+        },
+        "title": {
+          "type": "string",
+          "description": "Label of the budget or goal"
+        },
+        "monthlyLimit": {
+          "type": "number",
+          "description": "Monthly allocation or target amount"
+        },
+        "periodMonthYear": {
+          "type": "string",
+          "description": "Month-year target (YYYY-MM) or ALL"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated"
+        }
+      },
+      "required": ["userId", "accountCode", "targetAccountCode", "title", "monthlyLimit", "periodMonthYear"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Root document for user accounting preferences and metadata"
+    },
+    "/users/{userId}/entries/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/AccountingEntry"
+      },
+      "description": "Subcollection of double-entry accounting transactions for this user"
+    },
+    "/users/{userId}/accounts/{accountId}": {
+      "schema": {
+        "$ref": "#/entities/AccountItem"
+      },
+      "description": "Subcollection of custom or overridden chart accounts for this user"
+    },
+    "/users/{userId}/budgets/{budgetId}": {
+      "schema": {
+        "$ref": "#/entities/BudgetItem"
+      },
+      "description": "Subcollection of monthly budgets and savings goals for this user"
+    }
+  }
+}

@@ -1,0 +1,154 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (data.currency is string && data.currency.size() >= 1 && data.currency.size() <= 10) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidAccountingEntry(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (data.dateMillis is number && data.dateMillis > 0) &&
+             (!('reference' in data) || (data.reference is string && data.reference.size() <= 100)) &&
+             (data.label is string && data.label.size() > 0 && data.label.size() <= 200) &&
+             (data.debitAccountCode is string && data.debitAccountCode.size() >= 2 && data.debitAccountCode.size() <= 10) &&
+             (data.debitAccountName is string && data.debitAccountName.size() > 0 && data.debitAccountName.size() <= 100) &&
+             (data.creditAccountCode is string && data.creditAccountCode.size() >= 2 && data.creditAccountCode.size() <= 10) &&
+             (data.creditAccountName is string && data.creditAccountName.size() > 0 && data.creditAccountName.size() <= 100) &&
+             (data.amount is number && data.amount > 0) &&
+             (data.categoryType is string && data.categoryType.size() <= 40) &&
+             (!('note' in data) || (data.note is string && data.note.size() <= 500)) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidAccountItem(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (data.code is string && data.code.size() >= 2 && data.code.size() <= 10) &&
+             (data.name is string && data.name.size() > 0 && data.name.size() <= 100) &&
+             (data.accountClass is int && data.accountClass >= 1 && data.accountClass <= 9) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 300)) &&
+             (data.isCustom is bool) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    function isValidBudgetItem(data) {
+      return data.userId is string && data.userId.size() > 0 && data.userId.size() <= 128 &&
+             (data.accountCode is string && data.accountCode.size() >= 2 && data.accountCode.size() <= 10) &&
+             (data.targetAccountCode is string && data.targetAccountCode.size() >= 2 && data.targetAccountCode.size() <= 10) &&
+             (data.title is string && data.title.size() > 0 && data.title.size() <= 100) &&
+             (data.monthlyLimit is number && data.monthlyLimit >= 0) &&
+             (data.periodMonthYear is string && data.periodMonthYear.size() >= 3 && data.periodMonthYear.size() <= 10) &&
+             (!('createdAt' in data) || (data.createdAt is timestamp && data.createdAt <= request.time)) &&
+             (!('updatedAt' in data) || (data.updatedAt is timestamp && data.updatedAt <= request.time));
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && request.auth.uid == userId;
+
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'currency']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'currency', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+
+      allow update: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       incoming().userId == existing().userId &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'currency', 'updatedAt']);
+
+      allow delete: if isSignedIn() && request.auth.uid == userId;
+
+      match /entries/{entryId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(entryId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'dateMillis', 'label', 'debitAccountCode', 'debitAccountName', 'creditAccountCode', 'creditAccountName', 'amount', 'categoryType']) &&
+                         incoming().keys().hasOnly(['userId', 'dateMillis', 'reference', 'label', 'debitAccountCode', 'debitAccountName', 'creditAccountCode', 'creditAccountName', 'amount', 'categoryType', 'note', 'createdAt', 'updatedAt']) &&
+                         isValidAccountingEntry(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(entryId) &&
+                         incoming().userId == existing().userId &&
+                         isValidAccountingEntry(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['dateMillis', 'reference', 'label', 'debitAccountCode', 'debitAccountName', 'creditAccountCode', 'creditAccountName', 'amount', 'categoryType', 'note', 'updatedAt']);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(entryId);
+      }
+
+      match /accounts/{accountId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(accountId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'code', 'name', 'accountClass', 'isCustom']) &&
+                         incoming().keys().hasOnly(['userId', 'code', 'name', 'accountClass', 'description', 'isCustom', 'createdAt', 'updatedAt']) &&
+                         isValidAccountItem(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(accountId) &&
+                         incoming().userId == existing().userId &&
+                         isValidAccountItem(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'accountClass', 'description', 'isCustom', 'updatedAt']);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(accountId);
+      }
+
+      match /budgets/{budgetId} {
+        allow get, list: if isSignedIn() && request.auth.uid == userId;
+
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(budgetId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'accountCode', 'targetAccountCode', 'title', 'monthlyLimit', 'periodMonthYear']) &&
+                         incoming().keys().hasOnly(['userId', 'accountCode', 'targetAccountCode', 'title', 'monthlyLimit', 'periodMonthYear', 'createdAt', 'updatedAt']) &&
+                         isValidBudgetItem(incoming());
+
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(budgetId) &&
+                         incoming().userId == existing().userId &&
+                         isValidBudgetItem(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['targetAccountCode', 'title', 'monthlyLimit', 'periodMonthYear', 'updatedAt']);
+
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(budgetId);
+      }
+    }
+  }
+}
